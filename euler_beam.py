@@ -1,3 +1,4 @@
+from mindtorch.tools import mstorch_enable
 import torch
 import argparse
 import os.path as osp
