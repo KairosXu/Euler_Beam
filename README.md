@@ -169,4 +169,7 @@ python eluer_beam.py
 
 ## 6. 结果展示
 在[0,1]区间内线性采样若干个点 $x$ ,使用训练好的模型 $f$ 预测其求解量 $u \\_ pred$，并与其真实值进行对比，结果如下：
+
 ![](https://github.com/KairosXu/Euler_Beam/blob/main/asserts/result.png)
+
+训练的日志文件可以参考[EulerBeam训练日志](https://github.com/KairosXu/Euler_Beam/blob/main/asserts/log_train_.log)。
