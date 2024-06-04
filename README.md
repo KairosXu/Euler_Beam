@@ -96,7 +96,46 @@ t_boundary_1 = torch.tensor(1.).view(-1, 1).requires_grad_(True)
 ```
 
 ### 4.3 方程与约束构建
+首先需要计算计算域上的点的输出值关于输入值的四阶导数：
 
+```
+u = eb_model(t_physics)  # 使用神经网络计算物理点的输出
+dudt = torch.autograd.grad(u, t_physics, torch.ones_like(u), create_graph=True)[0]  # 计算物理点输出的时间导数
+d2udt2 = torch.autograd.grad(dudt, t_physics, torch.ones_like(dudt), create_graph=True)[0] # 二阶导数
+d3udt3 = torch.autograd.grad(d2udt2, t_physics, torch.ones_like(d2udt2), create_graph=True)[0] # 三阶导数
+d4udt4 = torch.autograd.grad(d3udt3, t_physics, torch.ones_like(d3udt3), create_graph=True)[0] # 四阶导数
+```
+
+接着使用损失对Euler Beam 方程进行约束：
+
+```
+loss4 = torch.mean((d4udt4 + 1) ** 2)  # 计算方程损失
+```
+
+边界条件约束：
+
+```
+u1 = model(t_boundary_1)
+du1dt = torch.autograd.grad(u1, t_boundary_1, torch.ones_like(u1), create_graph=True)[0]
+d2u1dt2 = torch.autograd.grad(du1dt, t_boundary_1, torch.ones_like(du1dt), create_graph=True)[0]
+d3u1dt3 = torch.autograd.grad(d2u1dt2, t_boundary_1, torch.ones_like(d2u1dt2), create_graph=True)[0]
+loss2 = (torch.squeeze(d2u1dt2) - 0) ** 2
+loss3 = (torch.squeeze(d3u1dt3) - 0) ** 2
+```
+
+狄利克雷条件约束：
+
+```
+u0 = pinn(t_boundary_0)
+loss0 = (torch.squeeze(u0) - 0) ** 2
+```
+
+诺依曼边界条件约束：
+
+```
+du0dt = torch.autograd.grad(u0, t_boundary_0, torch.ones_like(u0), create_graph=True)[0]
+loss1 = (torch.squeeze(du0dt) - 0) ** 2
+```
 
 ### 4.4 优化器构建
 训练过程会调用优化器来更新模型参数，此处选择较为常用的 Adam 优化器：
@@ -118,6 +157,16 @@ plt.savefig("result.png")
 ```
 
 ## 5. 训练脚本
+使用以下命令运行程序即可：
 
+```
+git clone https://github.com/KairosXu/Euler_Beam.git
+cd Euler_Beam
+python eluer_beam.py
+```
+
+相关的参数可以在[配置文件](https://github.com/KairosXu/Euler_Beam/blob/main/configs/default.py)中进行修改，包括训练轮次、随机种子、优化器学习率等等。
 
 ## 6. 结果展示
+在[0,1]区间内线性采样若干个点 $x$ ,使用训练好的模型 $f$ 预测其求解量 $u \\_ pred$，并与其真实值进行对比，结果如下：
+![](https://github.com/KairosXu/Euler_Beam/blob/main/asserts/result.png)
