@@ -1,19 +1,22 @@
 # Euler_Beam
 
 ## 1. 问题定义
-Euler Beam 公式
+
+欧拉-伯努利梁方程（英语：Euler–Bernoulli beam theory，简称：Euler Beam问题），是一个关于工程力学、经典梁力学的重要方程；是一个简化线性弹性理论用于用于计算梁受力和变形特征。欧拉-伯努利梁方程约形成于1750年，但这条方程却没有在后期建筑之中得到广泛的应用。直到十九世纪，这条方程才成为第二次工业革命的基石。在 Euler Beam 问题中，我们需要对一个已知的坐标点 $x$ 求解其对应的未知量 $u$ 。
+
+Euler Beam 方程如下：
 
 $$ \frac{\partial ^4 u}{\partial x^4} + 1 = 0, x \in [0,1]$$
 
-边界条件：
+方程需要满足以下边界条件：
 
 $$ u^{''}(1)=0, u^{'''}(1)=0 $$
 
-狄利克雷条件：
+方程需要满足狄利克雷条件为：
 
 $$ u(0)=0 $$
 
-诺依曼边界条件：
+方程需要满足诺依曼边界条件为：
 
 $$ u^{'}(0)=0 $$
 
@@ -64,7 +67,7 @@ $$
 u = f(x)
 $$
 
-上式中 $f$ 即为 $MLP$ 模型本身，代码表示如下：
+上式中 $f$ 即为 $MLP$ 模型本身，我们构造的三层 $MLP$ 代码表示如下：
 
 ```
 class FCN(nn.Module):
@@ -82,13 +85,13 @@ class FCN(nn.Module):
 ```
 
 ### 4.2 计算域构建
-Euler Beam 问题作用在 $[0,1]$ 的一维区域上:
+Euler Beam 问题作用在 $[0,1]$ 的一维区域上，我们在区间内均匀采样1000个点:
 
 ```
 t_physics = torch.linspace(0, 1, 1000).view(-1, 1).requires_grad_(True)
 ```
 
-同时对于Euler Beam问题还需要定义边界点，用于边界损失计算：
+同时对于Euler Beam问题还需要定义边界点0和1，用于边界损失计算：
 
 ```
 t_boundary_0 = torch.tensor(0.).view(-1, 1).requires_grad_(True)
@@ -106,13 +109,13 @@ d3udt3 = torch.autograd.grad(d2udt2, t_physics, torch.ones_like(d2udt2), create_
 d4udt4 = torch.autograd.grad(d3udt3, t_physics, torch.ones_like(d3udt3), create_graph=True)[0] # 四阶导数
 ```
 
-接着使用损失对Euler Beam 方程进行约束：
+接着使用均方误差对Euler Beam 方程进行约束：
 
 ```
 loss4 = torch.mean((d4udt4 + 1) ** 2)  # 计算方程损失
 ```
 
-边界条件约束：
+同样使用均方误差对边界条件进行约束：
 
 ```
 u1 = model(t_boundary_1)
@@ -123,14 +126,14 @@ loss2 = (torch.squeeze(d2u1dt2) - 0) ** 2
 loss3 = (torch.squeeze(d3u1dt3) - 0) ** 2
 ```
 
-狄利克雷条件约束：
+模型在0处的狄利克雷条件约束为：
 
 ```
 u0 = pinn(t_boundary_0)
 loss0 = (torch.squeeze(u0) - 0) ** 2
 ```
 
-诺依曼边界条件约束：
+诺依曼边界条件约束为：
 
 ```
 du0dt = torch.autograd.grad(u0, t_boundary_0, torch.ones_like(u0), create_graph=True)[0]
@@ -141,7 +144,7 @@ loss1 = (torch.squeeze(du0dt) - 0) ** 2
 训练过程会调用优化器来更新模型参数，此处选择较为常用的 Adam 优化器：
 
 ```
-optimiser = torch.optim.Adam(pinn.parameters(), lr=1e-3)
+optimiser = torch.optim.Adam(eb_model.parameters(), lr=1e-3)
 ```
 
 ### 4.5 可视化
@@ -172,4 +175,4 @@ python eluer_beam.py
 
 ![](https://github.com/KairosXu/Euler_Beam/blob/main/asserts/result.png)
 
-训练的日志文件可以参考[EulerBeam训练日志](https://github.com/KairosXu/Euler_Beam/blob/main/asserts/log_train_.log)。
+可以看到模型对于输入的预测表现较好，基本与标签相同。训练的日志文件可以参考[EulerBeam训练日志](https://github.com/KairosXu/Euler_Beam/blob/main/asserts/log_train_.log)。
